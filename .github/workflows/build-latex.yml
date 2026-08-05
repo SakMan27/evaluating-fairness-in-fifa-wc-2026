@@ -15,7 +15,7 @@ jobs:
       - name: Install LaTeX
         run: |
           sudo apt-get update
-          sudo apt-get install -y texlive-latex-base texlive-latex-extra texlive-fonts-recommended texlive-science
+          sudo apt-get install -y texlive-latex-base texlive-latex-extra texlive-fonts-recommended
 
       - name: Create output directory
         run: mkdir -p docs
@@ -132,4 +132,4 @@ jobs:
           git config --local user.name "GitHub Action"
           git add docs/
           git commit -m "Build: Compile LaTeX to PDF" || echo "No changes to commit"
-          git push
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
