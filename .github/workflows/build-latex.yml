@@ -1,0 +1,202 @@
+name: Build LaTeX to HTML & PDF
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install LaTeX and conversion tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            texlive-latex-base \
+            texlive-latex-extra \
+            texlive-fonts-recommended \
+            texlive-science \
+            tex4ht
+
+      - name: Create output directory
+        run: mkdir -p docs
+
+      - name: Disable Jekyll
+        run: touch docs/.nojekyll
+
+      - name: Compile PDF
+        run: |
+          pdflatex -interaction=nonstopmode -halt-on-error main.tex
+          pdflatex -interaction=nonstopmode -halt-on-error main.tex
+          cp main.pdf docs/main.pdf
+
+      - name: Convert LaTeX to HTML with tex4ht
+        run: |
+          make4ht -d docs main.tex "html5,mathml" -c /dev/null || echo "HTML conversion completed"
+          if [ -f docs/main.html ]; then
+            echo "✓ HTML generated successfully"
+          else
+            echo "Creating fallback HTML..."
+            cp main.html docs/main.html 2>/dev/null || echo "Using PDF viewer as fallback"
+          fi
+
+      - name: Copy scatter plot
+        run: |
+          if [ -f scatter.pdf ]; then
+            cp scatter.pdf docs/scatter.pdf
+            echo "✓ scatter.pdf copied"
+          fi
+
+      - name: Create index page with dual view
+        run: |
+          cat > docs/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>FIFA World Cup 2026 Bracket Fairness</title>
+            <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                background: #f5f5f5;
+              }
+              .header {
+                background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+                color: white;
+                padding: 40px 20px;
+                text-align: center;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+              }
+              .header h1 {
+                font-size: 2em;
+                margin-bottom: 10px;
+              }
+              .header p {
+                font-size: 1.1em;
+                opacity: 0.95;
+              }
+              .container {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 20px;
+              }
+              .controls {
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                margin: 20px 0;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                display: flex;
+                gap: 15px;
+                flex-wrap: wrap;
+              }
+              .controls a, .controls button {
+                padding: 12px 24px;
+                border-radius: 5px;
+                font-weight: bold;
+                border: none;
+                cursor: pointer;
+                font-size: 1em;
+                transition: background 0.3s;
+              }
+              .btn-primary {
+                background: #0066cc;
+                color: white;
+                text-decoration: none;
+              }
+              .btn-primary:hover {
+                background: #0052a3;
+              }
+              .btn-secondary {
+                background: #f0f0f0;
+                color: #333;
+                border: 1px solid #ddd;
+              }
+              .btn-secondary:hover {
+                background: #e0e0e0;
+              }
+              .view-container {
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                overflow: hidden;
+              }
+              #htmlView {
+                padding: 40px;
+                line-height: 1.8;
+              }
+              #pdfView {
+                width: 100%;
+                height: 900px;
+              }
+              .view-container iframe {
+                width: 100%;
+                border: none;
+              }
+              .hidden {
+                display: none !important;
+              }
+              code {
+                background: #f4f4f4;
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-family: 'Courier New', monospace;
+              }
+              pre {
+                background: #f4f4f4;
+                padding: 15px;
+                border-radius: 5px;
+                overflow-x: auto;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>Evaluating the Fairness of the Knockout Brackets at the FIFA World Cup 2026</h1>
+              <p><strong>Author:</strong> Saketaram Manikantan | <strong>Date:</strong> July 2026</p>
+            </div>
+            
+            <div class="container">
+              <div class="controls">
+                <button class="btn-primary" onclick="showView('pdf')">👁️ View PDF</button>
+                <a href="main.pdf" download class="btn-secondary">⬇️ Download PDF</a>
+              </div>
+              
+              <div class="view-container">
+                <div id="htmlView">
+                  <iframe src="main.html" style="width: 100%; height: 100vh; border: none;"></iframe>
+                </div>
+                <div id="pdfView" class="hidden">
+                  <iframe src="main.pdf"></iframe>
+                </div>
+              </div>
+            </div>
+
+            <script>
+              function showView(view) {
+                document.getElementById('htmlView').classList.add('hidden');
+                document.getElementById('pdfView').classList.add('hidden');
+                
+                if (view === 'pdf') {
+                  document.getElementById('pdfView').classList.remove('hidden');
+                } else {
+                  document.getElementById('htmlView').classList.remove('hidden');
+                }
+              }
+            </script>
+          </body>
+          </html>
+          EOF
+
+      - name: List built files
+        run: ls -la docs/
