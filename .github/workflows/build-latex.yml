@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install LaTeX
         run: |
@@ -19,6 +19,9 @@ jobs:
 
       - name: Create output directory
         run: mkdir -p docs
+
+      - name: Disable Jekyll
+        run: touch docs/.nojekyll
 
       - name: Compile PDF
         run: |
