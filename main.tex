@@ -1,0 +1,431 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{hyperref}
+\usepackage{siunitx}
+\usepackage{tikz}
+\usetikzlibrary{trees,positioning}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!50!black,
+    citecolor=blue!50!black,
+    urlcolor=blue!50!black
+}
+
+% -- Notation macros (edit centrally) --
+\newcommand{\Dif}{D}                 % difficulty index
+\newcommand{\str}{\sigma}            % team strength
+\newcommand{\gdiff}{\Gamma}          % group difficulty
+\newcommand{\dec}{d}                 % round decay parameter
+\newcommand{\wt}{w}                  % weight
+\newcommand{\Opp}[2]{\mathcal{O}_{#1}(#2)} % opponent set of team #1 in round #2
+
+\title{Evaluating the Fairness of the Knockout Brackets at the FIFA World Cup 2026}
+\author{Saketaram Manikantan}
+\date{July 2026}
+
+\begin{document}
+
+\maketitle
+
+
+
+\section{Introduction}
+
+The FIFA World Cup 2026 had pairings that were opaque, predeterministic, and questionable. Long before a single match was played-indeed, before the identity of a single qualifier was known-the entire architecture of the knockout stage had already been fixed. Teams did not earn positions in the bracket so much as they fell into slots that had been drawn up in advance, and the consequences of landing in one slot rather than another were neither uniform nor, in any obvious sense, deserved.
+
+\subsection{Context}
+
+The 2026 edition was the first contested under an expanded 48-team format, staged across the United States, Canada, and Mexico between 11 June and 19 July. The nations were divided into twelve groups of four, each played as a single round robin. Group winners and runners-up advanced automatically, filling twenty-four of the thirty-two knockout berths; the remaining eight went to the best third-placed teams, ranked across all groups by points, then goal difference, goals scored, and disciplinary record. The expansion introduced a new opening round-the Round of 32-and with it five successive rounds of single elimination.
+
+Crucially, the mapping from group-stage outcome to bracket position was deterministic and published in advance. Each pathway-winner of Group A, runner-up of Group F, and so on-corresponded to a fixed position in the tree, and the eight third-placed qualifiers were assigned by a lookup table keyed to which groups they emerged from rather than to their merit. No lots were drawn once the group stage concluded. A bracket so fixed honours the principle that position should follow from preliminary performance-that doing better never yields a harder path-only insofar as its structure happens to match the strength distribution that materialises.
+
+\section{Group Difficulty Index}
+\label{sec:strength}
+
+We first want to know how tough each group was - but measured \emph{before} a ball was kicked, so that the tournament's own results can't quietly sneak into the judgement. For this we use the final FIFA ranking published on the eve of the tournament. It has been Elo-based since 2018, which means it measures how strong a team actually is, not merely what order the teams fall in.
+
+A ranking, though, only gives us a position, not a strength. So we turn each team's rank $k$ into a strength score:
+
+\begin{equation}
+\str^{\mathrm{pre}}_t = \ln\!\left(\frac{49+c}{k(t)+c}\right), \qquad c = 6,
+\label{eq:logrank}
+\end{equation}
+
+with the 48 teams re-indexed $k = 1,\dots,48$. Why a logarithm? Because the gap in real strength between the 1st and 2nd best teams in the world is far larger than the gap between the 41st and 42nd, even though each is ``one place.'' The log captures that: it makes rank gaps count by \emph{ratio}, so moving from 1st to 2nd matters about as much as moving from 20th to 40th. The shift $c = 6$ is there to keep a single top seed from dominating. In reality the very best teams are bunched tightly together, and without the shift the world number one on its own would make its group look far harder than it truly was.
+
+A group's difficulty is then simply the average strength of its four teams, rescaled so that a perfectly average group scores exactly $1$:
+
+\begin{equation}
+\gdiff_g = \frac{\tfrac14\sum_{t\in T_g}\str^{\mathrm{pre}}_t}{\tfrac{1}{48}\sum_t \str^{\mathrm{pre}}_t}.
+\label{eq:groupdiff}
+\end{equation}
+
+We deliberately let a team count itself in this average. A top seed is placed, by design, among weaker opponents - so including it is exactly how we capture the head start that the seeding hands it.
+
+\begin{table}[htbp]
+\centering
+\caption{Group difficulty index $\gdiff_g$ from pre-tournament FIFA rankings (teams in rank order).}
+\label{tab:gamma}
+\begin{tabular}{@{}clc@{}}
+\toprule
+Group & Teams (by FIFA rank) & $\gdiff_g$ \\
+\midrule
+A & Mexico, South Korea, Czechia, South Africa & 0.781 \\
+B & Switzerland, Canada, Qatar, Bosnia \& Herz. & 0.582 \\
+C & Brazil, Morocco, Scotland, Haiti & 1.151 \\
+D & USA, T\"urkiye, Australia, Paraguay & 0.907 \\
+E & Germany, Ecuador, Ivory Coast, Cura\c{c}ao & 0.851 \\
+F & Netherlands, Japan, Sweden, Tunisia & 1.016 \\
+G & Belgium, Iran, Egypt, New Zealand & 0.918 \\
+H & Spain, Uruguay, Saudi Arabia, Cape Verde & 1.090 \\
+I & France, Senegal, Norway, Iraq & 1.215 \\
+J & Argentina, Austria, Algeria, Jordan & 1.195 \\
+K & Portugal, Colombia, DR Congo, Uzbekistan & 1.124 \\
+L & England, Croatia, Panama, Ghana & 1.171 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The toughest draws turned out to be Groups I, J, L, C and K, while B and A were the softest.
+
+\FloatBarrier
+\section{Group Stage Performance Index}
+\label{sec:perf}
+
+Next we measure how well each team actually played once the tournament began. We start from league points, and add a small bonus for goal difference as a secondary metric:
+
+\begin{equation}
+p_i = \mathrm{Pts}_i + 0.1\,\mathrm{GD}_i, \qquad \str_i = \gdiff_{g(i)}\, p_i .
+\label{eq:perfindex}
+\end{equation}
+
+We then multiply by the group's difficulty, so that the same seven points are worth more when they were earned in a hard group than in an easy one. The raw standings we begin from are in Table~\ref{tab:groups}, and the resulting performance scores $\str_i$ in Table~\ref{tab:sigma}.
+
+\begin{table}[htbp]
+\centering
+\caption{Final group standings (Source: \href{https://www.espn.in/football/table/_/league/fifa.world}{ESPN}).}
+\label{tab:groups}
+\begin{tabular}{@{}ccc@{}}
+\begin{minipage}{0.31\textwidth}\centering \begin{tabular}{@{}lcc@{}}
+\multicolumn{3}{@{}l}{\textbf{Group A}} \\
+\toprule
+Team & Pts & GD \\
+\midrule
+Mexico & 9 & $+6$ \\
+South Africa & 4 & $-1$ \\
+South Korea & 3 & $-1$ \\
+Czechia & 1 & $-4$ \\
+\bottomrule
+\end{tabular} \end{minipage} &
+\begin{minipage}{0.31\textwidth}\centering \begin{tabular}{@{}lcc@{}}
+\multicolumn{3}{@{}l}{\textbf{Group B}} \\
+\toprule
+Team & Pts & GD \\
+\midrule
+Switzerland & 7 & $+4$ \\
+Canada & 4 & $+5$ \\
+Bosnia \& Herz. & 4 & $-1$ \\
+Qatar & 1 & $-8$ \\
+\bottomrule
+\end{tabular} \end{minipage} &
+\begin{minipage}{0.31\textwidth}\centering \begin{tabular}{@{}lcc@{}}
+\multicolumn{3}{@{}l}{\textbf{Group C}} \\
+\toprule
+Team & Pts & GD \\
+\midrule
+Brazil & 7 & $+6$ \\
+Morocco & 7 & $+3$ \\
+Scotland & 3 & $-3$ \\
+Haiti & 0 & $-6$ \\
+\bottomrule
+\end{tabular} \end{minipage} \\
+\noalign{\vspace{2.6em}}
+\begin{minipage}{0.31\textwidth}\centering \begin{tabular}{@{}lcc@{}}
+\multicolumn{3}{@{}l}{\textbf{Group D}} \\
+\toprule
+Team & Pts & GD \\
+\midrule
+USA & 6 & $+4$ \\
+Australia & 4 & $+0$ \\
+Paraguay & 4 & $-2$ \\
+T\"urkiye & 3 & $-2$ \\
+\bottomrule
+\end{tabular} \end{minipage} &
+\begin{minipage}{0.31\textwidth}\centering \begin{tabular}{@{}lcc@{}}
+\multicolumn{3}{@{}l}{\textbf{Group E}} \\
+\toprule
+Team & Pts & GD \\
+\midrule
+Germany & 6 & $+6$ \\
+Ivory Coast & 6 & $+2$ \\
+Ecuador & 4 & $+0$ \\
+Cura\c{c}ao & 1 & $-8$ \\
+\bottomrule
+\end{tabular} \end{minipage} &
+\begin{minipage}{0.31\textwidth}\centering \begin{tabular}{@{}lcc@{}}
+\multicolumn{3}{@{}l}{\textbf{Group F}} \\
+\toprule
+Team & Pts & GD \\
+\midrule
+Netherlands & 7 & $+6$ \\
+Japan & 5 & $+4$ \\
+Sweden & 4 & $+0$ \\
+Tunisia & 0 & $-10$ \\
+\bottomrule
+\end{tabular} \end{minipage} \\
+\noalign{\vspace{2.6em}}
+\begin{minipage}{0.31\textwidth}\centering \begin{tabular}{@{}lcc@{}}
+\multicolumn{3}{@{}l}{\textbf{Group G}} \\
+\toprule
+Team & Pts & GD \\
+\midrule
+Belgium & 5 & $+4$ \\
+Egypt & 5 & $+2$ \\
+Iran & 3 & $+0$ \\
+New Zealand & 1 & $-6$ \\
+\bottomrule
+\end{tabular} \end{minipage} &
+\begin{minipage}{0.31\textwidth}\centering \begin{tabular}{@{}lcc@{}}
+\multicolumn{3}{@{}l}{\textbf{Group H}} \\
+\toprule
+Team & Pts & GD \\
+\midrule
+Spain & 7 & $+5$ \\
+Cape Verde & 3 & $+0$ \\
+Uruguay & 2 & $-1$ \\
+Saudi Arabia & 2 & $-4$ \\
+\bottomrule
+\end{tabular} \end{minipage} &
+\begin{minipage}{0.31\textwidth}\centering \begin{tabular}{@{}lcc@{}}
+\multicolumn{3}{@{}l}{\textbf{Group I}} \\
+\toprule
+Team & Pts & GD \\
+\midrule
+France & 9 & $+8$ \\
+Norway & 6 & $+1$ \\
+Senegal & 3 & $+2$ \\
+Iraq & 0 & $-11$ \\
+\bottomrule
+\end{tabular} \end{minipage} \\
+\noalign{\vspace{2.6em}}
+\begin{minipage}{0.31\textwidth}\centering \begin{tabular}{@{}lcc@{}}
+\multicolumn{3}{@{}l}{\textbf{Group J}} \\
+\toprule
+Team & Pts & GD \\
+\midrule
+Argentina & 9 & $+7$ \\
+Austria & 4 & $+0$ \\
+Algeria & 4 & $-2$ \\
+Jordan & 0 & $-5$ \\
+\bottomrule
+\end{tabular} \end{minipage} &
+\begin{minipage}{0.31\textwidth}\centering \begin{tabular}{@{}lcc@{}}
+\multicolumn{3}{@{}l}{\textbf{Group K}} \\
+\toprule
+Team & Pts & GD \\
+\midrule
+Colombia & 7 & $+3$ \\
+Portugal & 5 & $+5$ \\
+DR Congo & 4 & $+1$ \\
+Uzbekistan & 0 & $-9$ \\
+\bottomrule
+\end{tabular} \end{minipage} &
+\begin{minipage}{0.31\textwidth}\centering \begin{tabular}{@{}lcc@{}}
+\multicolumn{3}{@{}l}{\textbf{Group L}} \\
+\toprule
+Team & Pts & GD \\
+\midrule
+England & 7 & $+4$ \\
+Croatia & 6 & $+0$ \\
+Ghana & 4 & $+0$ \\
+Panama & 0 & $-4$ \\
+\bottomrule
+\end{tabular} \end{minipage} \\
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Group stage performance index $\str_i$ for the 32 qualifiers, ranked best to worst. Band: W winner, R runner-up, 3rd third-placed.}
+\label{tab:sigma}
+\begin{tabular}{@{}llcccr@{}}
+\toprule
+Team & Grp & Band & $p_i$ & $\Gamma_g$ & $\str_i$ \\
+\midrule
+France & I & W & 9.8 & 1.215 & 11.90 \\
+Argentina & J & W & 9.7 & 1.195 & 11.59 \\
+Brazil & C & W & 7.6 & 1.151 & 8.75 \\
+England & L & W & 7.4 & 1.171 & 8.67 \\
+Morocco & C & R & 7.3 & 1.151 & 8.40 \\
+Colombia & K & W & 7.3 & 1.124 & 8.21 \\
+Spain & H & W & 7.5 & 1.090 & 8.17 \\
+Netherlands & F & W & 7.6 & 1.016 & 7.72 \\
+Mexico & A & W & 9.6 & 0.781 & 7.49 \\
+Norway & I & R & 6.1 & 1.215 & 7.41 \\
+Croatia & L & R & 6.0 & 1.171 & 7.03 \\
+Portugal & K & R & 5.5 & 1.124 & 6.18 \\
+USA & D & W & 6.4 & 0.907 & 5.80 \\
+Germany & E & W & 6.6 & 0.851 & 5.62 \\
+Japan & F & R & 5.4 & 1.016 & 5.49 \\
+Ivory Coast & E & R & 6.2 & 0.851 & 5.28 \\
+Belgium & G & W & 5.4 & 0.918 & 4.96 \\
+Austria & J & R & 4.0 & 1.195 & 4.78 \\
+Egypt & G & R & 5.2 & 0.918 & 4.77 \\
+Ghana & L & 3rd & 4.0 & 1.171 & 4.68 \\
+DR Congo & K & 3rd & 4.1 & 1.124 & 4.61 \\
+Algeria & J & 3rd & 3.8 & 1.195 & 4.54 \\
+Switzerland & B & W & 7.4 & 0.582 & 4.31 \\
+Sweden & F & 3rd & 4.0 & 1.016 & 4.06 \\
+Senegal & I & 3rd & 3.2 & 1.215 & 3.89 \\
+Australia & D & R & 4.0 & 0.907 & 3.63 \\
+Paraguay & D & 3rd & 3.8 & 0.907 & 3.45 \\
+Ecuador & E & 3rd & 4.0 & 0.851 & 3.40 \\
+Cape Verde & H & R & 3.0 & 1.090 & 3.27 \\
+South Africa & A & R & 3.9 & 0.781 & 3.04 \\
+Canada & B & R & 4.5 & 0.582 & 2.62 \\
+Bosnia \& Herz. & B & 3rd & 3.9 & 0.582 & 2.27 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\FloatBarrier
+\section{Knockout Path Difficulty Index}
+\label{sec:index}
+
+This is the heart of the paper: how hard is each team's road to the trophy? To lift it, a team has to win five knockout rounds in a row, and with every round the set of teams it might run into grows - one possible opponent in the Round of 32, two in the Round of 16, four in the quarter-finals, and so on, doubling each round.
+
+We don't treat all of those possible opponents as equally important. Each one counts only a quarter as much as an opponent one round nearer:
+
+\begin{equation}
+\wt_r = 4^{-(r-1)} .
+\label{eq:weights}
+\end{equation}
+
+That factor of four comes from two reasons stacked on top of each other. First, the opponent right in front of you matters far more than some hypothetical final opponent you may never even reach - the immediate draw is what really makes a bracket brutal. That is one halving. Second, because the number of possible opponents doubles every round, we have to halve each one's weight again, simply so that a distant round doesn't pile up influence through sheer numbers. Halve for nearness, halve for count, and we land on a quarter per round. The upshot is that a team's very first opponent, in the Round of 32, already accounts for more than half ($51.6\%$) of the whole score.
+
+Adding up the strength of every team you could possibly meet, each discounted by how far off it is, gives the path difficulty:
+
+\begin{equation}
+\Dif_i = \sum_{r=1}^{5} 4^{-(r-1)} \sum_{j\,\in\,\Opp{i}{r}} \str_j ,
+\label{eq:pathdiff}
+\end{equation}
+
+where $\Opp{i}{r}$ is the block of the bracket that team $i$ would meet in round $r$. Since every team faces the same shape of bracket, the total weight is identical for all 32 slots - which is what lets us compare $\Dif_i$ fairly from one team to the next. The full results are in Table~\ref{tab:D}.
+
+\begin{table}[htbp]
+\centering
+\caption{Knockout path difficulty $\Dif_i$, ranked hardest to easiest.}
+\label{tab:D}
+\begin{minipage}{0.48\textwidth}\centering
+\begin{tabular}[t]{@{}llccr@{}}
+\toprule
+Team & Grp & Band & $\str_i$ & $\Dif_i$ \\
+\midrule
+Sweden & F & 3rd & 4.06 & 16.58 \\
+Cape Verde & H & R & 3.27 & 16.20 \\
+Japan & F & R & 5.49 & 14.49 \\
+DR Congo & K & 3rd & 4.61 & 14.13 \\
+Austria & J & R & 4.78 & 13.64 \\
+Ecuador & E & 3rd & 3.40 & 13.55 \\
+Ivory Coast & E & R & 5.28 & 13.53 \\
+Ghana & L & 3rd & 4.68 & 13.02 \\
+Netherlands & F & W & 7.72 & 12.43 \\
+Portugal & K & R & 6.18 & 12.43 \\
+Paraguay & D & 3rd & 3.45 & 12.02 \\
+Morocco & C & R & 8.40 & 11.75 \\
+Croatia & L & R & 7.03 & 11.58 \\
+Norway & I & R & 7.41 & 11.40 \\
+Brazil & C & W & 8.75 & 11.22 \\
+Australia & D & R & 3.63 & 11.00 \\
+\bottomrule
+\end{tabular}
+\end{minipage}\hfill\begin{minipage}{0.48\textwidth}\centering
+\begin{tabular}[t]{@{}llccr@{}}
+\toprule
+Team & Grp & Band & $\str_i$ & $\Dif_i$ \\
+\midrule
+Bosnia \& Herz. & B & 3rd & 2.27 & 10.76 \\
+Switzerland & B & W & 4.31 & 10.37 \\
+Spain & H & W & 8.17 & 10.25 \\
+Algeria & J & 3rd & 4.54 & 10.13 \\
+England & L & W & 8.67 & 10.07 \\
+Egypt & G & R & 4.77 & 9.85 \\
+Germany & E & W & 5.62 & 9.85 \\
+Senegal & I & 3rd & 3.89 & 9.72 \\
+Canada & B & R & 2.62 & 9.69 \\
+Colombia & K & W & 8.21 & 9.50 \\
+Mexico & A & W & 7.49 & 9.46 \\
+South Africa & A & R & 3.04 & 9.26 \\
+France & I & W & 11.90 & 8.74 \\
+Belgium & G & W & 4.96 & 8.65 \\
+Argentina & J & W & 11.59 & 7.88 \\
+USA & D & W & 5.80 & 7.22 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\end{table}
+
+\FloatBarrier
+\section{Results}
+\label{sec:results}
+
+Now we can ask the question the whole paper is built around: did the teams that played well in the group stage get rewarded with easier knockout paths? Figure~\ref{fig:scatter} puts the two numbers side by side - performance $\str_i$ along the bottom, path difficulty $\Dif_i$ up the side. If the bracket were fair, we would expect a clear downward slope: the better you did, the gentler your road should be. What we actually see is a line that barely tilts down, with teams scattered widely around it.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\textwidth]{scatter.pdf}
+\caption{A scatter plot comparing group-stage performance with knockout path difficulty.}
+\label{fig:scatter}
+\end{figure}
+
+\paragraph{Remark.} A downward trend fairly rewards group-stage performance with an easier knockout path. Teams below the line of best fit got a path easier than they had deserved for their group-stage performance, and vice-versa for the ones above.
+
+Putting a number on it, the Spearman rank correlation is only $\rho = -0.25$. To check whether even that much is real, we shuffled all 32 teams into random slots $20{,}000$ times and re-measured the correlation each time. The actual bracket lands right in the middle of that random pile (the shuffles average $-0.07$, and our $-0.25$ is a thoroughly ordinary value within them, $p = 0.23$). \textbf{In other words, the real draw was no fairer than pulling names out of a hat.} Splitting the teams by how they qualified tells us a little more:
+
+\begin{center}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Band & $n$ & $\rho(\str,\Dif)$ \\
+\midrule
+Group winners & 12 & $-0.04$ \\
+Runners-up & 12 & $+0.32$ \\
+Third-placed & 8 & $+0.24$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The runners-up are the real surprise here. Their correlation is \emph{positive}, which means the better a runner-up played, the harder its path tended to be - the opposite of what fairness would ask for. And the eight third-placed teams, who all squeaked through with near-identical records and were then slotted in by a fixed lookup table, show no real pattern at all.
+
+\paragraph{The seeding paradox.} The strangest result sits right at the top. The two best group-stage performers, France and Argentina, were handed two of the three \emph{easiest} paths in the whole bracket ($\Dif = 8.7$ and $7.9$), while the hardest roads went to Sweden and Cape Verde. But this isn't really a fairness failure - it is seeding doing exactly its job. The strongest teams are deliberately steered away from the other strong teams, so their paths come out easy \emph{because} they are good, not because they got lucky. This built-in protection tugs the whole picture toward looking fair, while everyone else is scattered almost at random, and the two effects roughly cancel - which is why the overall link comes out so weak.
+
+\FloatBarrier
+\section{Discussion}
+\label{sec:discussion}
+
+Because we let each team count itself in its group's difficulty, the top seeds get a small flattering bump. Our performance score also leans on just three group matches, which is a small and noisy sample. And most fundamentally, $\Dif_i$ treats the bracket as a \emph{gauntlet}: it adds up the strength of every team you could meet, without ever asking how likely you are to actually meet them. Also, we don't need a linear trend to be fair, only the direction should be right. A tougher but fairer version would weight each possible opponent by the real chance of the two teams crossing paths - which we can get from Elo win probabilities - instead of a flat quarter per round. For example, Portugal's actual knockout path was harder than we modelled, given that they were likely to face the better teams later, which weren't given adequate weightage. We leave that probabilistic version for future work.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+So how fair was the 2026 bracket? Our answer is that fairness barely came into it. Path difficulty and group-stage performance turned out to be essentially unrelated ($\rho = -0.25$, no better than a random draw). The bracket isn't so much unfair as \emph{indifferent}: your road to the final was decided by where you happened to sit in a pre-drawn tree, not by how well you actually played. Argentina and France were quietly handed the softest routes, while teams that had earned near-identical group records ended up with wildly different draws - nowhere more starkly than among the eight third-placed qualifiers, whose paths bore no relation to their strength at all.
+
+
+\begin{thebibliography}{99}
+
+\bibitem{fifa-ranking} FIFA. FIFA/Coca-Cola World Ranking Men. \url{https://inside.fifa.com/fifa-rankings/world-ranking/men?dateId=FRS_Male_Football_20260401}, June 2026.
+
+\bibitem{espn-standings} ESPN. FIFA World Cup 2026 Group Stage Standings. \url{https://www.espn.in/football/table/_/league/fifa.world}, July 2026.
+
+\bibitem{espn2026} ESPN. FIFA World Cup 2026 Scores and Bracket. \url{https://www.espn.in/football/bracket}, July 2026.
+
+\end{thebibliography}
+
+\end{document}
