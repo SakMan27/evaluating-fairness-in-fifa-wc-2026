@@ -2,47 +2,50 @@ name: Build LaTeX to HTML & PDF
 
 on:
   push:
-    paths:
-      - 'main.tex'
-      - 'scatter.pdf'
-      - '.github/workflows/build-latex.yml'
-  pull_request:
-    paths:
-      - 'main.tex'
-      - 'scatter.pdf'
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install LaTeX and tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            pandoc \
-            texlive-latex-base \
-            texlive-latex-extra \
-            texlive-fonts-recommended \
-            cm-super \
-            dvipng
+          sudo apt-get install -y texlive-latex-base texlive-latex-extra texlive-fonts-recommended pandoc
 
-      - name: Create docs directory
+      - name: Create output directory
         run: mkdir -p docs
 
-      - name: Build PDF with pdflatex
+      - name: Compile PDF
         run: |
-          pdflatex -interaction=nonstopmode main.tex || true
-          pdflatex -interaction=nonstopmode main.tex || true
-          if [ -f main.pdf ]; then mv main.pdf docs/; else echo "PDF build failed"; fi
+          pdflatex -interaction=nonstopmode -halt-on-error main.tex || echo "First pass done"
+          pdflatex -interaction=nonstopmode -halt-on-error main.tex || echo "Second pass done"
+          ls -la *.pdf || echo "No PDF found"
 
-      - name: Convert LaTeX to HTML with pandoc
+      - name: Move PDF to docs
+        run: |
+          if [ -f main.pdf ]; then
+            cp main.pdf docs/main.pdf
+            echo "PDF copied successfully"
+          else
+            echo "ERROR: main.pdf not found"
+          fi
+
+      - name: Convert to HTML
         run: pandoc main.tex -o docs/main.html --mathjax --standalone --toc
 
-      - name: Copy scatter.pdf to docs
+      - name: Copy scatter plot
         run: |
-          if [ -f scatter.pdf ]; then cp scatter.pdf docs/; else echo "Warning: scatter.pdf not found"; fi
+          if [ -f scatter.pdf ]; then
+            cp scatter.pdf docs/scatter.pdf
+            echo "scatter.pdf copied"
+          else
+            echo "WARNING: scatter.pdf not found in repo"
+          fi
 
       - name: Create index page
         run: |
@@ -53,32 +56,29 @@ jobs:
             <meta charset="utf-8">
             <title>FIFA World Cup 2026 Bracket Fairness</title>
             <style>
-              body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
+              body { font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 20px; line-height: 1.6; }
               h1 { color: #333; }
-              a { color: #0066cc; text-decoration: none; }
+              a { color: #0066cc; text-decoration: none; margin-right: 20px; }
               a:hover { text-decoration: underline; }
-              .links { margin: 20px 0; }
             </style>
           </head>
           <body>
             <h1>Evaluating the Fairness of the Knockout Brackets at the FIFA World Cup 2026</h1>
             <p><strong>Author:</strong> Saketaram Manikantan | <strong>Date:</strong> July 2026</p>
-            
-            <div class="links">
-              <h2>View the Paper</h2>
-              <ul>
-                <li><a href="main.html">📄 Read as HTML</a></li>
-                <li><a href="main.pdf">📋 Download PDF</a></li>
-              </ul>
+            <h2>View the Paper</h2>
+            <div>
+              <a href="main.html">📄 Read as HTML</a>
+              <a href="main.pdf">📋 Download PDF</a>
             </div>
           </body>
           </html>
           EOF
 
-      - name: Commit and push
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add docs/
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Build: render LaTeX to HTML & PDF" && git push)
+      - name: List built files
+        run: ls -la docs/
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
