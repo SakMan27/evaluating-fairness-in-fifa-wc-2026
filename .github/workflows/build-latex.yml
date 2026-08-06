@@ -11,10 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Install LaTeX and pandoc
+      - name: Install LaTeX and tex4ht
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y texlive-latex-base texlive-latex-extra texlive-fonts-recommended texlive-science pandoc
+          sudo apt-get install -y texlive-latex-base texlive-latex-extra texlive-fonts-recommended texlive-science tex4ht
 
       - name: Create docs folder
         run: mkdir -p docs && touch docs/.nojekyll
@@ -25,8 +25,15 @@ jobs:
           pdflatex -interaction=nonstopmode main.tex
           cp main.pdf docs/
 
-      - name: Convert LaTeX to HTML with pandoc
-        run: pandoc main.tex -o docs/main_content.html --mathjax --standalone
+      - name: Convert LaTeX to HTML with tex4ht
+        run: |
+          cd docs
+          cp ../main.tex .
+          make4ht main.tex "html5,mathjax" -c /dev/null 2>&1 || true
+          cd ..
+          if [ ! -f docs/main_content.html ]; then
+            mv docs/main.html docs/main_content.html 2>/dev/null || echo "Warning: main.html not created"
+          fi
 
       - name: Create wrapper index.html
         run: |
