@@ -1,17 +1,922 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>FIFA World Cup 2026 Bracket Fairness</title>
-  <style>
-    body { font-family: Arial; max-width: 1000px; margin: 0 auto; padding: 20px; }
-    h1 { color: #333; }
-    a { color: #0066cc; }
-  </style>
-</head>
-<body>
-  <h1>Evaluating the Fairness of the Knockout Brackets at the FIFA World Cup 2026</h1>
-  <p><strong>Author:</strong> Saketaram Manikantan | <strong>Date:</strong> July 2026</p>
-  <p><a href="main.pdf">📥 Download PDF</a> | <a href="main.pdf" target="_blank">👁️ View PDF</a></p>
-  <iframe src="main.pdf" width="100%" height="800px"></iframe>
-</body>
-</html>
+<h1 id="introduction">Introduction</h1>
+<p>The FIFA World Cup 2026 had pairings that were opaque,
+predeterministic, and questionable. Long before a single match was
+played-indeed, before the identity of a single qualifier was known-the
+entire architecture of the knockout stage had already been fixed. Teams
+did not earn positions in the bracket so much as they fell into slots
+that had been drawn up in advance, and the consequences of landing in
+one slot rather than another were neither uniform nor, in any obvious
+sense, deserved.</p>
+<h2 id="context">Context</h2>
+<p>The 2026 edition was the first contested under an expanded 48-team
+format, staged across the United States, Canada, and Mexico between 11
+June and 19 July. The nations were divided into twelve groups of four,
+each played as a single round robin. Group winners and runners-up
+advanced automatically, filling twenty-four of the thirty-two knockout
+berths; the remaining eight went to the best third-placed teams, ranked
+across all groups by points, then goal difference, goals scored, and
+disciplinary record. The expansion introduced a new opening round-the
+Round of 32-and with it five successive rounds of single
+elimination.</p>
+<p>Crucially, the mapping from group-stage outcome to bracket position
+was deterministic and published in advance. Each pathway-winner of Group
+A, runner-up of Group F, and so on-corresponded to a fixed position in
+the tree, and the eight third-placed qualifiers were assigned by a
+lookup table keyed to which groups they emerged from rather than to
+their merit. No lots were drawn once the group stage concluded. A
+bracket so fixed honours the principle that position should follow from
+preliminary performance-that doing better never yields a harder
+path-only insofar as its structure happens to match the strength
+distribution that materialises.</p>
+<h1 id="sec:strength">Group Difficulty Index</h1>
+<p>We first want to know how tough each group was - but measured
+<em>before</em> a ball was kicked, so that the tournament’s own results
+can’t quietly sneak into the judgement. For this we use the final FIFA
+ranking published on the eve of the tournament. It has been Elo-based
+since 2018, which means it measures how strong a team actually is, not
+merely what order the teams fall in.</p>
+<p>A ranking, though, only gives us a position, not a strength. So we
+turn each team’s rank <span class="math inline"><em>k</em></span> into a
+strength score:</p>
+<p><span class="math display">$$\begin{equation}
+\sigma^{\mathrm{pre}}_t = \ln\!\left(\frac{49+c}{k(t)+c}\right), \qquad
+c = 6,
+\label{eq:logrank}
+\end{equation}$$</span></p>
+<p>with the 48 teams re-indexed <span
+class="math inline"><em>k</em> = 1, …, 48</span>. Why a logarithm?
+Because the gap in real strength between the 1st and 2nd best teams in
+the world is far larger than the gap between the 41st and 42nd, even
+though each is “one place.” The log captures that: it makes rank gaps
+count by <em>ratio</em>, so moving from 1st to 2nd matters about as much
+as moving from 20th to 40th. The shift <span
+class="math inline"><em>c</em> = 6</span> is there to keep a single top
+seed from dominating. In reality the very best teams are bunched tightly
+together, and without the shift the world number one on its own would
+make its group look far harder than it truly was.</p>
+<p>A group’s difficulty is then simply the average strength of its four
+teams, rescaled so that a perfectly average group scores exactly <span
+class="math inline">1</span>:</p>
+<p><span class="math display">$$\begin{equation}
+\Gamma_g = \frac{\tfrac14\sum_{t\in
+T_g}\sigma^{\mathrm{pre}}_t}{\tfrac{1}{48}\sum_t
+\sigma^{\mathrm{pre}}_t}.
+\label{eq:groupdiff}
+\end{equation}$$</span></p>
+<p>We deliberately let a team count itself in this average. A top seed
+is placed, by design, among weaker opponents - so including it is
+exactly how we capture the head start that the seeding hands it.</p>
+<table id="tab:gamma">
+<caption>Group difficulty index <span
+class="math inline"><em>Γ</em><sub><em>g</em></sub></span> from
+pre-tournament FIFA rankings (teams in rank order).</caption>
+<thead>
+<tr>
+<th style="text-align: center;">Group</th>
+<th style="text-align: left;">Teams (by FIFA rank)</th>
+<th style="text-align: center;"><span
+class="math inline"><em>Γ</em><sub><em>g</em></sub></span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">A</td>
+<td style="text-align: left;">Mexico, South Korea, Czechia, South
+Africa</td>
+<td style="text-align: center;">0.781</td>
+</tr>
+<tr>
+<td style="text-align: center;">B</td>
+<td style="text-align: left;">Switzerland, Canada, Qatar, Bosnia &amp;
+Herz.</td>
+<td style="text-align: center;">0.582</td>
+</tr>
+<tr>
+<td style="text-align: center;">C</td>
+<td style="text-align: left;">Brazil, Morocco, Scotland, Haiti</td>
+<td style="text-align: center;">1.151</td>
+</tr>
+<tr>
+<td style="text-align: center;">D</td>
+<td style="text-align: left;">USA, Türkiye, Australia, Paraguay</td>
+<td style="text-align: center;">0.907</td>
+</tr>
+<tr>
+<td style="text-align: center;">E</td>
+<td style="text-align: left;">Germany, Ecuador, Ivory Coast,
+Curaçao</td>
+<td style="text-align: center;">0.851</td>
+</tr>
+<tr>
+<td style="text-align: center;">F</td>
+<td style="text-align: left;">Netherlands, Japan, Sweden, Tunisia</td>
+<td style="text-align: center;">1.016</td>
+</tr>
+<tr>
+<td style="text-align: center;">G</td>
+<td style="text-align: left;">Belgium, Iran, Egypt, New Zealand</td>
+<td style="text-align: center;">0.918</td>
+</tr>
+<tr>
+<td style="text-align: center;">H</td>
+<td style="text-align: left;">Spain, Uruguay, Saudi Arabia, Cape
+Verde</td>
+<td style="text-align: center;">1.090</td>
+</tr>
+<tr>
+<td style="text-align: center;">I</td>
+<td style="text-align: left;">France, Senegal, Norway, Iraq</td>
+<td style="text-align: center;">1.215</td>
+</tr>
+<tr>
+<td style="text-align: center;">J</td>
+<td style="text-align: left;">Argentina, Austria, Algeria, Jordan</td>
+<td style="text-align: center;">1.195</td>
+</tr>
+<tr>
+<td style="text-align: center;">K</td>
+<td style="text-align: left;">Portugal, Colombia, DR Congo,
+Uzbekistan</td>
+<td style="text-align: center;">1.124</td>
+</tr>
+<tr>
+<td style="text-align: center;">L</td>
+<td style="text-align: left;">England, Croatia, Panama, Ghana</td>
+<td style="text-align: center;">1.171</td>
+</tr>
+</tbody>
+</table>
+<p>The toughest draws turned out to be Groups I, J, L, C and K, while B
+and A were the softest.</p>
+<h1 id="sec:perf">Group Stage Performance Index</h1>
+<p>Next we measure how well each team actually played once the
+tournament began. We start from league points, and add a small bonus for
+goal difference as a secondary metric:</p>
+<p><span
+class="math display"><em>p</em><sub><em>i</em></sub> = Pts<sub><em>i</em></sub> + 0.1 GD<sub><em>i</em></sub>,   <em>σ</em><sub><em>i</em></sub> = <em>Γ</em><sub><em>g</em>(<em>i</em>)</sub> <em>p</em><sub><em>i</em></sub>.</span></p>
+<p>We then multiply by the group’s difficulty, so that the same seven
+points are worth more when they were earned in a hard group than in an
+easy one. The raw standings we begin from are in Table <a
+href="#tab:groups" data-reference-type="ref"
+data-reference="tab:groups">2</a>, and the resulting performance scores
+<span class="math inline"><em>σ</em><sub><em>i</em></sub></span> in
+Table <a href="#tab:sigma" data-reference-type="ref"
+data-reference="tab:sigma">3</a>.</p>
+<table id="tab:groups">
+<caption>Final group standings (Source: <a
+href="https://www.espn.in/football/table/_/league/fifa.world">ESPN</a>).</caption>
+<tbody>
+<tr>
+<td style="text-align: center;"><div class="minipage">
+
+</div></td>
+<td style="text-align: center;"><div class="minipage">
+
+</div></td>
+<td style="text-align: center;"><div class="minipage">
+
+</div></td>
+</tr>
+<tr>
+<td style="text-align: center;"><div class="minipage">
+
+</div></td>
+<td style="text-align: center;"><div class="minipage">
+
+</div></td>
+<td style="text-align: center;"><div class="minipage">
+
+</div></td>
+</tr>
+<tr>
+<td style="text-align: center;"><div class="minipage">
+
+</div></td>
+<td style="text-align: center;"><div class="minipage">
+
+</div></td>
+<td style="text-align: center;"><div class="minipage">
+
+</div></td>
+</tr>
+<tr>
+<td style="text-align: center;"><div class="minipage">
+
+</div></td>
+<td style="text-align: center;"><div class="minipage">
+
+</div></td>
+<td style="text-align: center;"><div class="minipage">
+
+</div></td>
+</tr>
+</tbody>
+</table>
+<table id="tab:sigma">
+<caption>Group stage performance index <span
+class="math inline"><em>σ</em><sub><em>i</em></sub></span> for the 32
+qualifiers, ranked best to worst. Band: W winner, R runner-up, 3rd
+third-placed.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Team</th>
+<th style="text-align: left;">Grp</th>
+<th style="text-align: center;">Band</th>
+<th style="text-align: center;"><span
+class="math inline"><em>p</em><sub><em>i</em></sub></span></th>
+<th style="text-align: center;"><span
+class="math inline"><em>Γ</em><sub><em>g</em></sub></span></th>
+<th style="text-align: right;"><span
+class="math inline"><em>σ</em><sub><em>i</em></sub></span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">France</td>
+<td style="text-align: left;">I</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">9.8</td>
+<td style="text-align: center;">1.215</td>
+<td style="text-align: right;">11.90</td>
+</tr>
+<tr>
+<td style="text-align: left;">Argentina</td>
+<td style="text-align: left;">J</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">9.7</td>
+<td style="text-align: center;">1.195</td>
+<td style="text-align: right;">11.59</td>
+</tr>
+<tr>
+<td style="text-align: left;">Brazil</td>
+<td style="text-align: left;">C</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">7.6</td>
+<td style="text-align: center;">1.151</td>
+<td style="text-align: right;">8.75</td>
+</tr>
+<tr>
+<td style="text-align: left;">England</td>
+<td style="text-align: left;">L</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">7.4</td>
+<td style="text-align: center;">1.171</td>
+<td style="text-align: right;">8.67</td>
+</tr>
+<tr>
+<td style="text-align: left;">Morocco</td>
+<td style="text-align: left;">C</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">7.3</td>
+<td style="text-align: center;">1.151</td>
+<td style="text-align: right;">8.40</td>
+</tr>
+<tr>
+<td style="text-align: left;">Colombia</td>
+<td style="text-align: left;">K</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">7.3</td>
+<td style="text-align: center;">1.124</td>
+<td style="text-align: right;">8.21</td>
+</tr>
+<tr>
+<td style="text-align: left;">Spain</td>
+<td style="text-align: left;">H</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">7.5</td>
+<td style="text-align: center;">1.090</td>
+<td style="text-align: right;">8.17</td>
+</tr>
+<tr>
+<td style="text-align: left;">Netherlands</td>
+<td style="text-align: left;">F</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">7.6</td>
+<td style="text-align: center;">1.016</td>
+<td style="text-align: right;">7.72</td>
+</tr>
+<tr>
+<td style="text-align: left;">Mexico</td>
+<td style="text-align: left;">A</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">9.6</td>
+<td style="text-align: center;">0.781</td>
+<td style="text-align: right;">7.49</td>
+</tr>
+<tr>
+<td style="text-align: left;">Norway</td>
+<td style="text-align: left;">I</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">6.1</td>
+<td style="text-align: center;">1.215</td>
+<td style="text-align: right;">7.41</td>
+</tr>
+<tr>
+<td style="text-align: left;">Croatia</td>
+<td style="text-align: left;">L</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">6.0</td>
+<td style="text-align: center;">1.171</td>
+<td style="text-align: right;">7.03</td>
+</tr>
+<tr>
+<td style="text-align: left;">Portugal</td>
+<td style="text-align: left;">K</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">5.5</td>
+<td style="text-align: center;">1.124</td>
+<td style="text-align: right;">6.18</td>
+</tr>
+<tr>
+<td style="text-align: left;">USA</td>
+<td style="text-align: left;">D</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">6.4</td>
+<td style="text-align: center;">0.907</td>
+<td style="text-align: right;">5.80</td>
+</tr>
+<tr>
+<td style="text-align: left;">Germany</td>
+<td style="text-align: left;">E</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">6.6</td>
+<td style="text-align: center;">0.851</td>
+<td style="text-align: right;">5.62</td>
+</tr>
+<tr>
+<td style="text-align: left;">Japan</td>
+<td style="text-align: left;">F</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">5.4</td>
+<td style="text-align: center;">1.016</td>
+<td style="text-align: right;">5.49</td>
+</tr>
+<tr>
+<td style="text-align: left;">Ivory Coast</td>
+<td style="text-align: left;">E</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">6.2</td>
+<td style="text-align: center;">0.851</td>
+<td style="text-align: right;">5.28</td>
+</tr>
+<tr>
+<td style="text-align: left;">Belgium</td>
+<td style="text-align: left;">G</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">5.4</td>
+<td style="text-align: center;">0.918</td>
+<td style="text-align: right;">4.96</td>
+</tr>
+<tr>
+<td style="text-align: left;">Austria</td>
+<td style="text-align: left;">J</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">4.0</td>
+<td style="text-align: center;">1.195</td>
+<td style="text-align: right;">4.78</td>
+</tr>
+<tr>
+<td style="text-align: left;">Egypt</td>
+<td style="text-align: left;">G</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">5.2</td>
+<td style="text-align: center;">0.918</td>
+<td style="text-align: right;">4.77</td>
+</tr>
+<tr>
+<td style="text-align: left;">Ghana</td>
+<td style="text-align: left;">L</td>
+<td style="text-align: center;">3rd</td>
+<td style="text-align: center;">4.0</td>
+<td style="text-align: center;">1.171</td>
+<td style="text-align: right;">4.68</td>
+</tr>
+<tr>
+<td style="text-align: left;">DR Congo</td>
+<td style="text-align: left;">K</td>
+<td style="text-align: center;">3rd</td>
+<td style="text-align: center;">4.1</td>
+<td style="text-align: center;">1.124</td>
+<td style="text-align: right;">4.61</td>
+</tr>
+<tr>
+<td style="text-align: left;">Algeria</td>
+<td style="text-align: left;">J</td>
+<td style="text-align: center;">3rd</td>
+<td style="text-align: center;">3.8</td>
+<td style="text-align: center;">1.195</td>
+<td style="text-align: right;">4.54</td>
+</tr>
+<tr>
+<td style="text-align: left;">Switzerland</td>
+<td style="text-align: left;">B</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">7.4</td>
+<td style="text-align: center;">0.582</td>
+<td style="text-align: right;">4.31</td>
+</tr>
+<tr>
+<td style="text-align: left;">Sweden</td>
+<td style="text-align: left;">F</td>
+<td style="text-align: center;">3rd</td>
+<td style="text-align: center;">4.0</td>
+<td style="text-align: center;">1.016</td>
+<td style="text-align: right;">4.06</td>
+</tr>
+<tr>
+<td style="text-align: left;">Senegal</td>
+<td style="text-align: left;">I</td>
+<td style="text-align: center;">3rd</td>
+<td style="text-align: center;">3.2</td>
+<td style="text-align: center;">1.215</td>
+<td style="text-align: right;">3.89</td>
+</tr>
+<tr>
+<td style="text-align: left;">Australia</td>
+<td style="text-align: left;">D</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">4.0</td>
+<td style="text-align: center;">0.907</td>
+<td style="text-align: right;">3.63</td>
+</tr>
+<tr>
+<td style="text-align: left;">Paraguay</td>
+<td style="text-align: left;">D</td>
+<td style="text-align: center;">3rd</td>
+<td style="text-align: center;">3.8</td>
+<td style="text-align: center;">0.907</td>
+<td style="text-align: right;">3.45</td>
+</tr>
+<tr>
+<td style="text-align: left;">Ecuador</td>
+<td style="text-align: left;">E</td>
+<td style="text-align: center;">3rd</td>
+<td style="text-align: center;">4.0</td>
+<td style="text-align: center;">0.851</td>
+<td style="text-align: right;">3.40</td>
+</tr>
+<tr>
+<td style="text-align: left;">Cape Verde</td>
+<td style="text-align: left;">H</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">3.0</td>
+<td style="text-align: center;">1.090</td>
+<td style="text-align: right;">3.27</td>
+</tr>
+<tr>
+<td style="text-align: left;">South Africa</td>
+<td style="text-align: left;">A</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">3.9</td>
+<td style="text-align: center;">0.781</td>
+<td style="text-align: right;">3.04</td>
+</tr>
+<tr>
+<td style="text-align: left;">Canada</td>
+<td style="text-align: left;">B</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">4.5</td>
+<td style="text-align: center;">0.582</td>
+<td style="text-align: right;">2.62</td>
+</tr>
+<tr>
+<td style="text-align: left;">Bosnia &amp; Herz.</td>
+<td style="text-align: left;">B</td>
+<td style="text-align: center;">3rd</td>
+<td style="text-align: center;">3.9</td>
+<td style="text-align: center;">0.582</td>
+<td style="text-align: right;">2.27</td>
+</tr>
+</tbody>
+</table>
+<h1 id="sec:index">Knockout Path Difficulty Index</h1>
+<p>This is the heart of the paper: how hard is each team’s road to the
+trophy? To lift it, a team has to win five knockout rounds in a row, and
+with every round the set of teams it might run into grows - one possible
+opponent in the Round of 32, two in the Round of 16, four in the
+quarter-finals, and so on, doubling each round.</p>
+<p>We don’t treat all of those possible opponents as equally important.
+Each one counts only a quarter as much as an opponent one round
+nearer:</p>
+<p><span
+class="math display"><em>w</em><sub><em>r</em></sub> = 4<sup>−(<em>r</em> − 1)</sup>.</span></p>
+<p>That factor of four comes from two reasons stacked on top of each
+other. First, the opponent right in front of you matters far more than
+some hypothetical final opponent you may never even reach - the
+immediate draw is what really makes a bracket brutal. That is one
+halving. Second, because the number of possible opponents doubles every
+round, we have to halve each one’s weight again, simply so that a
+distant round doesn’t pile up influence through sheer numbers. Halve for
+nearness, halve for count, and we land on a quarter per round. The
+upshot is that a team’s very first opponent, in the Round of 32, already
+accounts for more than half (<span class="math inline">51.6%</span>) of
+the whole score.</p>
+<p>Adding up the strength of every team you could possibly meet, each
+discounted by how far off it is, gives the path difficulty:</p>
+<p><span class="math display">$$\begin{equation}
+D_i = \sum_{r=1}^{5} 4^{-(r-1)} \sum_{j\,\in\,\mathcal{O}_{i}(r)}
+\sigma_j ,
+\label{eq:pathdiff}
+\end{equation}$$</span></p>
+<p>where <span
+class="math inline">𝒪<sub><em>i</em></sub>(<em>r</em>)</span> is the
+block of the bracket that team <span
+class="math inline"><em>i</em></span> would meet in round <span
+class="math inline"><em>r</em></span>. Since every team faces the same
+shape of bracket, the total weight is identical for all 32 slots - which
+is what lets us compare <span
+class="math inline"><em>D</em><sub><em>i</em></sub></span> fairly from
+one team to the next. The full results are in Table <a href="#tab:D"
+data-reference-type="ref" data-reference="tab:D">5</a>.</p>
+<div class="minipage">
+<table id="tab:D">
+<caption>Knockout path difficulty <span
+class="math inline"><em>D</em><sub><em>i</em></sub></span>, ranked
+hardest to easiest.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Team</th>
+<th style="text-align: left;">Grp</th>
+<th style="text-align: center;">Band</th>
+<th style="text-align: center;"><span
+class="math inline"><em>σ</em><sub><em>i</em></sub></span></th>
+<th style="text-align: right;"><span
+class="math inline"><em>D</em><sub><em>i</em></sub></span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Sweden</td>
+<td style="text-align: left;">F</td>
+<td style="text-align: center;">3rd</td>
+<td style="text-align: center;">4.06</td>
+<td style="text-align: right;">16.58</td>
+</tr>
+<tr>
+<td style="text-align: left;">Cape Verde</td>
+<td style="text-align: left;">H</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">3.27</td>
+<td style="text-align: right;">16.20</td>
+</tr>
+<tr>
+<td style="text-align: left;">Japan</td>
+<td style="text-align: left;">F</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">5.49</td>
+<td style="text-align: right;">14.49</td>
+</tr>
+<tr>
+<td style="text-align: left;">DR Congo</td>
+<td style="text-align: left;">K</td>
+<td style="text-align: center;">3rd</td>
+<td style="text-align: center;">4.61</td>
+<td style="text-align: right;">14.13</td>
+</tr>
+<tr>
+<td style="text-align: left;">Austria</td>
+<td style="text-align: left;">J</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">4.78</td>
+<td style="text-align: right;">13.64</td>
+</tr>
+<tr>
+<td style="text-align: left;">Ecuador</td>
+<td style="text-align: left;">E</td>
+<td style="text-align: center;">3rd</td>
+<td style="text-align: center;">3.40</td>
+<td style="text-align: right;">13.55</td>
+</tr>
+<tr>
+<td style="text-align: left;">Ivory Coast</td>
+<td style="text-align: left;">E</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">5.28</td>
+<td style="text-align: right;">13.53</td>
+</tr>
+<tr>
+<td style="text-align: left;">Ghana</td>
+<td style="text-align: left;">L</td>
+<td style="text-align: center;">3rd</td>
+<td style="text-align: center;">4.68</td>
+<td style="text-align: right;">13.02</td>
+</tr>
+<tr>
+<td style="text-align: left;">Netherlands</td>
+<td style="text-align: left;">F</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">7.72</td>
+<td style="text-align: right;">12.43</td>
+</tr>
+<tr>
+<td style="text-align: left;">Portugal</td>
+<td style="text-align: left;">K</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">6.18</td>
+<td style="text-align: right;">12.43</td>
+</tr>
+<tr>
+<td style="text-align: left;">Paraguay</td>
+<td style="text-align: left;">D</td>
+<td style="text-align: center;">3rd</td>
+<td style="text-align: center;">3.45</td>
+<td style="text-align: right;">12.02</td>
+</tr>
+<tr>
+<td style="text-align: left;">Morocco</td>
+<td style="text-align: left;">C</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">8.40</td>
+<td style="text-align: right;">11.75</td>
+</tr>
+<tr>
+<td style="text-align: left;">Croatia</td>
+<td style="text-align: left;">L</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">7.03</td>
+<td style="text-align: right;">11.58</td>
+</tr>
+<tr>
+<td style="text-align: left;">Norway</td>
+<td style="text-align: left;">I</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">7.41</td>
+<td style="text-align: right;">11.40</td>
+</tr>
+<tr>
+<td style="text-align: left;">Brazil</td>
+<td style="text-align: left;">C</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">8.75</td>
+<td style="text-align: right;">11.22</td>
+</tr>
+<tr>
+<td style="text-align: left;">Australia</td>
+<td style="text-align: left;">D</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">3.63</td>
+<td style="text-align: right;">11.00</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="minipage">
+<table id="tab:D">
+<caption>Knockout path difficulty <span
+class="math inline"><em>D</em><sub><em>i</em></sub></span>, ranked
+hardest to easiest.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Team</th>
+<th style="text-align: left;">Grp</th>
+<th style="text-align: center;">Band</th>
+<th style="text-align: center;"><span
+class="math inline"><em>σ</em><sub><em>i</em></sub></span></th>
+<th style="text-align: right;"><span
+class="math inline"><em>D</em><sub><em>i</em></sub></span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Bosnia &amp; Herz.</td>
+<td style="text-align: left;">B</td>
+<td style="text-align: center;">3rd</td>
+<td style="text-align: center;">2.27</td>
+<td style="text-align: right;">10.76</td>
+</tr>
+<tr>
+<td style="text-align: left;">Switzerland</td>
+<td style="text-align: left;">B</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">4.31</td>
+<td style="text-align: right;">10.37</td>
+</tr>
+<tr>
+<td style="text-align: left;">Spain</td>
+<td style="text-align: left;">H</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">8.17</td>
+<td style="text-align: right;">10.25</td>
+</tr>
+<tr>
+<td style="text-align: left;">Algeria</td>
+<td style="text-align: left;">J</td>
+<td style="text-align: center;">3rd</td>
+<td style="text-align: center;">4.54</td>
+<td style="text-align: right;">10.13</td>
+</tr>
+<tr>
+<td style="text-align: left;">England</td>
+<td style="text-align: left;">L</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">8.67</td>
+<td style="text-align: right;">10.07</td>
+</tr>
+<tr>
+<td style="text-align: left;">Egypt</td>
+<td style="text-align: left;">G</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">4.77</td>
+<td style="text-align: right;">9.85</td>
+</tr>
+<tr>
+<td style="text-align: left;">Germany</td>
+<td style="text-align: left;">E</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">5.62</td>
+<td style="text-align: right;">9.85</td>
+</tr>
+<tr>
+<td style="text-align: left;">Senegal</td>
+<td style="text-align: left;">I</td>
+<td style="text-align: center;">3rd</td>
+<td style="text-align: center;">3.89</td>
+<td style="text-align: right;">9.72</td>
+</tr>
+<tr>
+<td style="text-align: left;">Canada</td>
+<td style="text-align: left;">B</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">2.62</td>
+<td style="text-align: right;">9.69</td>
+</tr>
+<tr>
+<td style="text-align: left;">Colombia</td>
+<td style="text-align: left;">K</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">8.21</td>
+<td style="text-align: right;">9.50</td>
+</tr>
+<tr>
+<td style="text-align: left;">Mexico</td>
+<td style="text-align: left;">A</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">7.49</td>
+<td style="text-align: right;">9.46</td>
+</tr>
+<tr>
+<td style="text-align: left;">South Africa</td>
+<td style="text-align: left;">A</td>
+<td style="text-align: center;">R</td>
+<td style="text-align: center;">3.04</td>
+<td style="text-align: right;">9.26</td>
+</tr>
+<tr>
+<td style="text-align: left;">France</td>
+<td style="text-align: left;">I</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">11.90</td>
+<td style="text-align: right;">8.74</td>
+</tr>
+<tr>
+<td style="text-align: left;">Belgium</td>
+<td style="text-align: left;">G</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">4.96</td>
+<td style="text-align: right;">8.65</td>
+</tr>
+<tr>
+<td style="text-align: left;">Argentina</td>
+<td style="text-align: left;">J</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">11.59</td>
+<td style="text-align: right;">7.88</td>
+</tr>
+<tr>
+<td style="text-align: left;">USA</td>
+<td style="text-align: left;">D</td>
+<td style="text-align: center;">W</td>
+<td style="text-align: center;">5.80</td>
+<td style="text-align: right;">7.22</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h1 id="sec:results">Results</h1>
+<p>Now we can ask the question the whole paper is built around: did the
+teams that played well in the group stage get rewarded with easier
+knockout paths? Figure <a href="#fig:scatter" data-reference-type="ref"
+data-reference="fig:scatter">1</a> puts the two numbers side by side -
+performance <span
+class="math inline"><em>σ</em><sub><em>i</em></sub></span> along the
+bottom, path difficulty <span
+class="math inline"><em>D</em><sub><em>i</em></sub></span> up the side.
+If the bracket were fair, we would expect a clear downward slope: the
+better you did, the gentler your road should be. What we actually see is
+a line that barely tilts down, with teams scattered widely around
+it.</p>
+<figure id="fig:scatter" data-latex-placement="htbp">
+<embed src="scatter.pdf" style="width:82.0%" />
+<figcaption>A scatter plot comparing group-stage performance with
+knockout path difficulty.</figcaption>
+</figure>
+<h4 id="remark.">Remark.</h4>
+<p>A downward trend fairly rewards group-stage performance with an
+easier knockout path. Teams below the line of best fit got a path easier
+than they had deserved for their group-stage performance, and vice-versa
+for the ones above.</p>
+<p>Putting a number on it, the Spearman rank correlation is only <span
+class="math inline"><em>ρ</em> = −0.25</span>. To check whether even
+that much is real, we shuffled all 32 teams into random slots <span
+class="math inline">20, 000</span> times and re-measured the correlation
+each time. The actual bracket lands right in the middle of that random
+pile (the shuffles average <span class="math inline">−0.07</span>, and
+our <span class="math inline">−0.25</span> is a thoroughly ordinary
+value within them, <span class="math inline"><em>p</em> = 0.23</span>).
+<strong>In other words, the real draw was no fairer than pulling names
+out of a hat.</strong> Splitting the teams by how they qualified tells
+us a little more:</p>
+<div class="center">
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Band</th>
+<th style="text-align: center;"><span
+class="math inline"><em>n</em></span></th>
+<th style="text-align: center;"><span
+class="math inline"><em>ρ</em>(<em>σ</em>, <em>D</em>)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Group winners</td>
+<td style="text-align: center;">12</td>
+<td style="text-align: center;"><span
+class="math inline">−0.04</span></td>
+</tr>
+<tr>
+<td style="text-align: left;">Runners-up</td>
+<td style="text-align: center;">12</td>
+<td style="text-align: center;"><span
+class="math inline">+0.32</span></td>
+</tr>
+<tr>
+<td style="text-align: left;">Third-placed</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;"><span
+class="math inline">+0.24</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The runners-up are the real surprise here. Their correlation is
+<em>positive</em>, which means the better a runner-up played, the harder
+its path tended to be - the opposite of what fairness would ask for. And
+the eight third-placed teams, who all squeaked through with
+near-identical records and were then slotted in by a fixed lookup table,
+show no real pattern at all.</p>
+<h4 id="the-seeding-paradox.">The seeding paradox.</h4>
+<p>The strangest result sits right at the top. The two best group-stage
+performers, France and Argentina, were handed two of the three
+<em>easiest</em> paths in the whole bracket (<span
+class="math inline"><em>D</em> = 8.7</span> and <span
+class="math inline">7.9</span>), while the hardest roads went to Sweden
+and Cape Verde. But this isn’t really a fairness failure - it is seeding
+doing exactly its job. The strongest teams are deliberately steered away
+from the other strong teams, so their paths come out easy
+<em>because</em> they are good, not because they got lucky. This
+built-in protection tugs the whole picture toward looking fair, while
+everyone else is scattered almost at random, and the two effects roughly
+cancel - which is why the overall link comes out so weak.</p>
+<h1 id="sec:discussion">Discussion</h1>
+<p>Because we let each team count itself in its group’s difficulty, the
+top seeds get a small flattering bump. Our performance score also leans
+on just three group matches, which is a small and noisy sample. And most
+fundamentally, <span
+class="math inline"><em>D</em><sub><em>i</em></sub></span> treats the
+bracket as a <em>gauntlet</em>: it adds up the strength of every team
+you could meet, without ever asking how likely you are to actually meet
+them. Also, we don’t need a linear trend to be fair, only the direction
+should be right. A tougher but fairer version would weight each possible
+opponent by the real chance of the two teams crossing paths - which we
+can get from Elo win probabilities - instead of a flat quarter per
+round. For example, Portugal’s actual knockout path was harder than we
+modelled, given that they were likely to face the better teams later,
+which weren’t given adequate weightage. We leave that probabilistic
+version for future work.</p>
+<h1 id="sec:conclusion">Conclusion</h1>
+<p>So how fair was the 2026 bracket? Our answer is that fairness barely
+came into it. Path difficulty and group-stage performance turned out to
+be essentially unrelated (<span
+class="math inline"><em>ρ</em> = −0.25</span>, no better than a random
+draw). The bracket isn’t so much unfair as <em>indifferent</em>: your
+road to the final was decided by where you happened to sit in a
+pre-drawn tree, not by how well you actually played. Argentina and
+France were quietly handed the softest routes, while teams that had
+earned near-identical group records ended up with wildly different draws
+- nowhere more starkly than among the eight third-placed qualifiers,
+whose paths bore no relation to their strength at all.</p>
+<div class="thebibliography">
+<p><span>99</span></p>
+<p>FIFA. FIFA/Coca-Cola World Ranking Men. <a
+href="https://inside.fifa.com/fifa-rankings/world-ranking/men?dateId=FRS_Male_Football_20260401"
+class="uri">https://inside.fifa.com/fifa-rankings/world-ranking/men?dateId=FRS_Male_Football_20260401</a>,
+June 2026.</p>
+<p>ESPN. FIFA World Cup 2026 Group Stage Standings. <a
+href="https://www.espn.in/football/table/_/league/fifa.world"
+class="uri">https://www.espn.in/football/table/_/league/fifa.world</a>,
+July 2026.</p>
+<p>ESPN. FIFA World Cup 2026 Scores and Bracket. <a
+href="https://www.espn.in/football/bracket"
+class="uri">https://www.espn.in/football/bracket</a>, July 2026.</p>
+</div>
