@@ -113,10 +113,5 @@ jobs:
           </html>
           HTMLEOF
 
-      - name: Commit and push
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add docs/
-          git commit -m "Build: Render LaTeX to HTML and PDF" || echo "No changes"
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git || echo "Push failed"
+      - name: List built files
+        run: ls -la docs/
